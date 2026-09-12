@@ -854,11 +854,13 @@ function ContactSection({ isArabic }: { isArabic: boolean }) {
 
 function Footer({ onNavigate, isArabic }: { onNavigate: (id: SectionId) => void; isArabic: boolean }) {
   return (
-    <footer className="site-footer bg-burgundy-dark px-5 py-6 text-cream/70 sm:px-8 sm:py-6">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="footer-brand-group [&_.text-burgundy]:text-cream">
-          <BrandMark isArabic={isArabic} compact />
-          <div className="footer-socials mt-2.5 flex items-center gap-2.5">
+    <footer className="site-footer bg-burgundy-dark px-5 py-4 text-cream/70 sm:px-8 sm:py-6">
+      <div className="mx-auto max-w-7xl">
+        <div className="footer-top-row flex items-center justify-between gap-4 sm:contents">
+          <div className="footer-brand-group [&_.text-burgundy]:text-cream">
+            <BrandMark isArabic={isArabic} compact />
+          </div>
+          <div className="footer-socials flex shrink-0 items-center gap-2.5">
             <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" aria-label="Elaash Beauty on Instagram" className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-cream/20 text-cream/75 transition hover:border-gold/70 hover:bg-cream/10 hover:text-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
               <InstagramIcon size={17} />
             </a>
@@ -867,7 +869,7 @@ function Footer({ onNavigate, isArabic }: { onNavigate: (id: SectionId) => void;
             </a>
           </div>
         </div>
-        <div className="flex flex-wrap gap-1.5 sm:justify-end">
+        <div className="footer-menu mt-3 flex flex-wrap gap-1.5 sm:mt-0 sm:justify-end">
           {SECTION_IDS.map((id) => <button key={id} onClick={() => onNavigate(id)} className="rounded-full px-2.5 py-1.5 text-xs sm:text-sm hover:bg-cream/10 hover:text-gold">{tr(labels.nav[id], isArabic)}</button>)}
         </div>
       </div>

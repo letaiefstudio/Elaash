@@ -516,3 +516,290 @@ input[type='date']::-webkit-calendar-picker-indicator {
     margin-top: 0;
   }
 }
+
+/* Final viewport polish: desktop sections + compact mobile footer only. */
+@media (max-width: 639px) {
+  .site-footer {
+    position: relative;
+    z-index: 31;
+    padding-top: 0.875rem;
+    padding-bottom: 0.875rem;
+    transform: translateY(calc(-3.5rem - env(safe-area-inset-bottom)));
+  }
+
+  .site-footer > div {
+    display: block;
+  }
+
+  .footer-top-row {
+    width: 100%;
+  }
+
+  .footer-brand-group {
+    min-width: 0;
+  }
+
+  .footer-brand-group img {
+    max-height: 2.25rem;
+    width: auto;
+  }
+
+  .footer-socials {
+    margin-top: 0;
+  }
+
+  .footer-socials a {
+    height: 2rem;
+    width: 2rem;
+  }
+
+  .footer-menu {
+    margin-top: 0.65rem;
+    gap: 0.15rem 0.25rem;
+    border-top: 1px solid rgba(253, 249, 243, 0.12);
+    padding-top: 0.55rem;
+  }
+
+  .footer-menu button {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.7rem;
+    line-height: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Services / Prices: one complete desktop viewport including the next-section button. */
+  .services-section {
+    height: calc(100dvh - 5.5rem);
+    min-height: 620px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    padding-top: clamp(0.8rem, 1.5vh, 1.25rem);
+    padding-bottom: clamp(0.7rem, 1.2vh, 1rem);
+  }
+
+  .services-section > div {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .services-intro {
+    flex: 0 0 auto;
+    margin-bottom: 0.45rem;
+    gap: 0.7rem;
+  }
+
+  .services-title {
+    font-size: clamp(1.85rem, 2.5vw, 2.55rem);
+  }
+
+  .services-categories {
+    position: relative;
+    top: auto;
+    flex: 0 0 auto;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+  }
+
+  .services-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 0.45rem;
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .services-content > .mb-2 {
+    flex: 0 0 auto;
+    margin-bottom: 0.35rem;
+  }
+
+  .services-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: 100% !important;
+    grid-auto-rows: minmax(0, 1fr);
+    align-content: stretch;
+  }
+
+  .services-grid .service-card {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    aspect-ratio: auto;
+  }
+
+  .services-next {
+    flex: 0 0 auto;
+    margin-top: clamp(0.45rem, 1vh, 0.7rem);
+    padding-bottom: 0;
+  }
+
+  .services-next button {
+    min-height: 2.6rem;
+  }
+
+  /* Gallery: truly centered and contained within one desktop viewport. */
+  .gallery-viewport-section {
+    height: calc(100dvh - 5.5rem);
+    min-height: 620px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    padding-top: clamp(1rem, 2vh, 1.5rem);
+    padding-bottom: clamp(1rem, 2vh, 1.5rem);
+  }
+
+  .gallery-viewport-section > div {
+    width: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .gallery-viewport-section .grid {
+    min-height: 0;
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  .gallery-viewport-section .grid > div {
+    min-height: 0;
+  }
+
+  .gallery-viewport-section .grid img,
+  .gallery-viewport-section .grid > div:first-child img {
+    height: clamp(9rem, 17vh, 12.5rem);
+    max-height: 100%;
+  }
+
+  .gallery-viewport-section .grid > div:first-child {
+    grid-row: span 2 / span 2;
+  }
+
+  .gallery-viewport-section .grid > div:first-child img {
+    height: 100%;
+  }
+
+  /* Instagram: fill the available viewport without pushing its CTA below the fold. */
+  .instagram-feed-section {
+    height: calc(100dvh - 5.5rem);
+    min-height: 620px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    padding-top: clamp(1rem, 2vh, 1.5rem);
+    padding-bottom: clamp(1rem, 2vh, 1.5rem);
+  }
+
+  .instagram-feed-section > div {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .instagram-feed-section > div > div:first-child {
+    flex: 0 0 auto;
+    margin-bottom: clamp(0.75rem, 1.6vh, 1.2rem);
+  }
+
+  .instagram-feed-section > div > div:first-child p.mt-4 {
+    margin-top: 0.65rem;
+  }
+
+  .instagram-feed-section > div > div:first-child a.mt-5 {
+    margin-top: 0.65rem;
+  }
+
+  .instagram-feed-frame {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    height: auto;
+  }
+
+  .instagram-feed-section > div > div:last-child {
+    flex: 0 0 auto;
+    margin-top: clamp(0.7rem, 1.4vh, 1rem);
+  }
+
+  /* Keep the existing compact desktop footer presentation. */
+  .site-footer > div {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.9rem;
+  }
+
+  .footer-top-row {
+    display: contents;
+  }
+
+  .footer-brand-group {
+    grid-column: 1;
+  }
+
+  .footer-socials {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .footer-menu {
+    grid-column: 3;
+    margin-top: 0;
+    justify-self: end;
+  }
+}
+
+@media (min-width: 1024px) and (max-height: 760px) {
+  .services-section,
+  .gallery-viewport-section,
+  .instagram-feed-section {
+    min-height: 0;
+  }
+
+  .services-section {
+    padding-top: 0.6rem;
+    padding-bottom: 0.55rem;
+  }
+
+  .services-intro {
+    margin-bottom: 0.3rem;
+  }
+
+  .services-title {
+    font-size: 1.75rem;
+  }
+
+  .services-categories {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .services-content {
+    margin-top: 0.3rem;
+  }
+
+  .services-next {
+    margin-top: 0.35rem;
+  }
+
+  .gallery-viewport-section,
+  .instagram-feed-section {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .gallery-viewport-section > div > div:first-child {
+    margin-bottom: 0.7rem;
+  }
+}
