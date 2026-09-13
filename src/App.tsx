@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCatalog } from './lib/catalog';
+import { offerOriginalPrice, useOffers, type OfferPackage } from './lib/offers';
 import type { Category, Service } from './data/services';
 
 const WA_NUMBER = '971545006642';
@@ -8,13 +9,15 @@ const MAP_EMBED_URL = 'https://www.google.com/maps?q=Elaash%20Beauty%20Ladies%20
 const INSTAGRAM_URL = 'https://www.instagram.com/elaash_beauty?utm_source=ig_web_button_share_sheet&stkn=ZDNlZDc0MzIxNw==';
 const INSTAGRAM_EMBED_URL = 'https://www.instagram.com/elaash_beauty/embed';
 const FACEBOOK_URL = 'https://www.facebook.com/share/1BsGojqrsp/?mibextid=wwXIfr';
-const SECTION_IDS = ['home', 'services', 'about', 'gallery', 'contact'] as const;
+const SECTION_IDS = ['home', 'services', 'offers', 'about', 'gallery', 'contact'] as const;
 type SectionId = typeof SECTION_IDS[number] | 'instagram';
+const MOBILE_SECTION_ORDER: SectionId[] = ['home', 'services', 'offers', 'about', 'gallery', 'instagram', 'contact'];
 
 const labels = {
   nav: {
     home: ['Home', 'الرئيسية'],
     services: ['Services & Prices', 'الخدمات والأسعار'],
+    offers: ['Offers & Packages', 'العروض والباقات'],
     about: ['About', 'عن الصالون'],
     gallery: ['Gallery', 'المعرض'],
     contact: ['Contact', 'التواصل'],
@@ -332,7 +335,8 @@ function Nav({ active, onNavigate, isArabic, setIsArabic, setBooking }: { active
         </div>
         <div className="hidden items-center gap-3 lg:flex">
           <button onClick={() => setIsArabic(!isArabic)} className="rounded-full px-3 py-2 text-xs font-semibold text-muted hover:text-burgundy focus:outline-none focus:ring-2 focus:ring-gold">{isArabic ? 'EN' : 'العربية'}</button>
-          <button onClick={() => setBooking({ id: 'general', name: 'General Appointment', nameAr: 'موعد عام', category: 'service-charge', categoryName: 'Service', categoryNameAr: 'الخدمات', price: 0 })} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-semibold text-cream hover:bg-burgundy-dark focus:outline-none focus:ring-2 focus:ring-gold">
+          <a href="/login" className="rounded-full border border-blush px-4 py-2.5 text-sm font-semibold text-burgundy transition hover:border-gold hover:bg-blush-light focus:outline-none focus:ring-2 focus:ring-gold">{isArabic ? 'تسجيل الدخول' : 'Sign in'}</a>
+          <button onClick={() => setBooking({ id: 'general', name: 'General Appointment', nameAr: 'موعد عام', category: 'service-charge', price: 0 })} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-semibold text-cream hover:bg-burgundy-dark focus:outline-none focus:ring-2 focus:ring-gold">
             {tr(labels.bookNow, isArabic)}
           </button>
         </div>
@@ -352,6 +356,7 @@ function Nav({ active, onNavigate, isArabic, setIsArabic, setBooking }: { active
               {tr(labels.nav[id], isArabic)}
             </button>
           ))}
+          <a href="/login" className={`mt-2 block w-full rounded-xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm font-bold text-burgundy ${isArabic ? 'text-right' : 'text-left'}`}>{isArabic ? 'تسجيل الدخول / حسابي' : 'Sign in / My Elaash'}</a>
         </div>
       )}
     </nav>
@@ -484,6 +489,7 @@ function ServicesSection({ isArabic, setBooking, onNavigate }: { isArabic: boole
   const tabsRef = useRef<Record<string, HTMLButtonElement | null>>({});
   const tabScrollerRef = useRef<HTMLDivElement | null>(null);
   const didMountTabsRef = useRef(false);
+  const mobileCarouselRef = useRef<HTMLDivElement | null>(null);
   const query = search.trim().toLowerCase();
   const isSearching = query.length > 0;
   const resultKey = isSearching ? '__search' : activeCategory;
@@ -565,7 +571,23 @@ function ServicesSection({ isArabic, setBooking, onNavigate }: { isArabic: boole
   const setPage = (page: number) => {
     const nextPage = Math.min(Math.max(page, 1), totalPages);
     setPages((value) => ({ ...value, [resultKey]: nextPage }));
+    const node = mobileCarouselRef.current;
+    if (node && window.matchMedia('(max-width: 639px)').matches) {
+      node.scrollTo({ left: (nextPage - 1) * node.clientWidth * (isArabic ? -1 : 1), behavior: 'smooth' });
+    }
   };
+
+  useEffect(() => {
+    const node = mobileCarouselRef.current;
+    if (!node) return;
+    const onScroll = () => {
+      if (!window.matchMedia('(max-width: 639px)').matches || !node.clientWidth) return;
+      const page = Math.min(totalPages, Math.max(1, Math.round(Math.abs(node.scrollLeft) / node.clientWidth) + 1));
+      setPages((value) => value[resultKey] === page ? value : ({ ...value, [resultKey]: page }));
+    };
+    node.addEventListener('scroll', onScroll, { passive: true });
+    return () => node.removeEventListener('scroll', onScroll);
+  }, [resultKey, totalPages]);
 
   const activeIndex = orderedCategories.findIndex((category) => category.id === activeCategory);
   const scrollTabs = (direction: -1 | 1) => {
@@ -642,29 +664,222 @@ function ServicesSection({ isArabic, setBooking, onNavigate }: { isArabic: boole
               <p className="mt-2 text-sm text-muted">{tr(labels.noResultsHint, isArabic)}</p>
             </div>
           ) : (
-            <div
-              key={`${resultKey}-${safePage}-${pageSize}`}
-              className="services-grid mx-auto grid animate-card-page gap-[clamp(0.35rem,0.8vw,0.62rem)]"
-              style={{
-                ['--service-cols' as string]: gridConfig.columns,
-                ['--service-rows' as string]: gridConfig.rows,
-                gridTemplateColumns: `repeat(${gridConfig.columns}, minmax(0, 1fr))`,
-                maxWidth: 'min(100%, calc((((100svh - 15rem - ((var(--service-rows) - 1) * clamp(0.35rem, 0.8vw, 0.62rem))) / var(--service-rows)) / 0.82) * var(--service-cols) + ((var(--service-cols) - 1) * clamp(0.35rem, 0.8vw, 0.62rem))))',
-              }}
-            >
-              {pageItems.map((service) => <ServiceCard key={service.id} service={service} isArabic={isArabic} onBook={setBooking} />)}
-            </div>
+            <>
+              <div
+                ref={mobileCarouselRef}
+                data-touch-scroll
+                className="services-mobile-carousel sm:hidden"
+                dir={isArabic ? 'rtl' : 'ltr'}
+              >
+                {Array.from({ length: totalPages }, (_, pageIndex) => {
+                  const items = visibleServices.slice(pageIndex * pageSize, pageIndex * pageSize + pageSize);
+                  return (
+                    <div key={`${resultKey}-mobile-${pageIndex}`} className="services-mobile-page">
+                      {items.map((service) => <ServiceCard key={service.id} service={service} isArabic={isArabic} onBook={setBooking} />)}
+                    </div>
+                  );
+                })}
+              </div>
+              <div
+                key={`${resultKey}-${safePage}-${pageSize}`}
+                className="services-grid mx-auto hidden animate-card-page gap-[clamp(0.35rem,0.8vw,0.62rem)] sm:grid"
+                style={{
+                  ['--service-cols' as string]: gridConfig.columns,
+                  ['--service-rows' as string]: gridConfig.rows,
+                  gridTemplateColumns: `repeat(${gridConfig.columns}, minmax(0, 1fr))`,
+                  maxWidth: 'min(100%, calc((((100svh - 15rem - ((var(--service-rows) - 1) * clamp(0.35rem, 0.8vw, 0.62rem))) / var(--service-rows)) / 0.82) * var(--service-cols) + ((var(--service-cols) - 1) * clamp(0.35rem, 0.8vw, 0.62rem))))',
+                }}
+              >
+                {pageItems.map((service) => <ServiceCard key={service.id} service={service} isArabic={isArabic} onBook={setBooking} />)}
+              </div>
+            </>
           )}
 
           <PaginationControls page={safePage} totalPages={totalPages} setPage={setPage} isArabic={isArabic} />
           <div className="services-next mt-6 flex justify-center pb-10 sm:mt-7 sm:pb-0">
             <SectionNextButton
-              targetId="about"
-              label={isArabic ? 'تعرّفي علينا' : 'Discover Our Story'}
-              ariaLabel={isArabic ? 'تعرّفي علينا' : 'Discover Our Story'}
+              targetId="offers"
+              label={isArabic ? 'شاهدي العروض والباقات' : 'View Offers & Packages'}
+              ariaLabel={isArabic ? 'شاهدي العروض والباقات' : 'View Offers & Packages'}
               onNavigate={onNavigate}
             />
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function formatOfferPrice(value: string) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return 'Ask on WhatsApp';
+  return raw.toUpperCase().includes('AED') ? raw : `AED ${raw}`;
+}
+
+function offerWhatsAppUrl(offer: OfferPackage, isArabic: boolean) {
+  const oldPrice = offerOriginalPrice(offer.services);
+  const serviceLines = offer.services.map((service) => {
+    const qty = service.quantity > 1 ? `${service.quantity} × ` : '';
+    return `• ${qty}${isArabic ? service.nameAr : service.name}`;
+  });
+  const message = isArabic
+    ? [
+        'مرحباً Elaash Beauty، أود الاستفسار عن هذه الباقة:',
+        '',
+        `الباقة: ${offer.nameAr}`,
+        oldPrice ? `السعر العادي: ${oldPrice}` : '',
+        `سعر العرض: ${formatOfferPrice(offer.offerPrice)}`,
+        '',
+        ...serviceLines,
+      ]
+    : [
+        'Hello Elaash Beauty, I would like to book this package:',
+        '',
+        `Package: ${offer.name}`,
+        oldPrice ? `Regular total: ${oldPrice}` : '',
+        `Offer price: ${formatOfferPrice(offer.offerPrice)}`,
+        '',
+        ...serviceLines,
+      ];
+  return `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(message.filter(Boolean).join('\n'))}`;
+}
+
+function OfferCard({ offer, isArabic }: { offer: OfferPackage; isArabic: boolean }) {
+  const oldPrice = offerOriginalPrice(offer.services);
+  const title = isArabic ? offer.nameAr : offer.name;
+  const description = isArabic ? offer.descriptionAr : offer.description;
+
+  return (
+    <article className="offer-card group relative flex h-full min-h-0 snap-center flex-col overflow-hidden rounded-[1.6rem] border border-blush bg-cream shadow-[0_18px_50px_rgba(74,16,25,0.08)]">
+      <div className="relative min-h-0 flex-[0.9] overflow-hidden bg-blush-light">
+        {offer.image ? (
+          <img src={offer.image} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" loading="lazy" />
+        ) : (
+          <div className="flex h-full min-h-[120px] items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(196,150,58,.20),transparent_45%),linear-gradient(135deg,#FDF9F3,#F8EFEC)] px-6 text-center">
+            <img src="/images/logo.png" alt="" className="max-h-20 w-auto opacity-75" />
+          </div>
+        )}
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-burgundy-dark/35 to-transparent" />
+        <span className="absolute left-4 top-4 rounded-full bg-burgundy px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-cream shadow-lg">
+          {isArabic ? 'عرض خاص' : 'Special Offer'}
+        </span>
+      </div>
+      <div className="flex min-h-0 flex-[1.15] flex-col p-4 sm:p-5">
+        <h3 className="font-serif text-xl leading-tight text-burgundy sm:text-2xl">{title}</h3>
+        {description && <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted sm:text-sm">{description}</p>}
+        <div className="mt-3 min-h-0 flex-1 overflow-hidden">
+          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-gold">{isArabic ? 'تشمل' : 'Includes'}</p>
+          <div className="space-y-1">
+            {offer.services.slice(0, 5).map((service) => (
+              <p key={service.id} className="truncate text-xs text-charcoal/80">
+                <span className="mr-1 text-gold">•</span>
+                {service.quantity > 1 ? `${service.quantity} × ` : ''}{isArabic ? service.nameAr : service.name}
+              </p>
+            ))}
+            {offer.services.length > 5 && <p className="text-[11px] font-semibold text-muted">+ {offer.services.length - 5} {isArabic ? 'خدمات أخرى' : 'more'}</p>}
+          </div>
+        </div>
+        <div className="mt-3 flex items-end justify-between gap-3 border-t border-blush pt-3">
+          <div>
+            {oldPrice && <p className="text-xs text-muted line-through decoration-burgundy/50">{oldPrice}</p>}
+            <p className="font-serif text-xl font-semibold text-burgundy sm:text-2xl">{formatOfferPrice(offer.offerPrice)}</p>
+          </div>
+          <a
+            href={offerWhatsAppUrl(offer, isArabic)}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-[#25D366] px-4 text-xs font-bold text-white shadow-md transition hover:bg-[#1ebe5d]"
+          >
+            {isArabic ? 'احجزي الباقة' : 'Book Package'}
+          </a>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function OffersSection({ isArabic, onNavigate }: { isArabic: boolean; onNavigate: (id: SectionId) => void }) {
+  const { offers, loading, error } = useOffers();
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024 ? 3 : typeof window !== 'undefined' && window.innerWidth >= 640 ? 2 : 1);
+  const mobileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const update = () => setPerPage(window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(offers.length / perPage));
+  const safePage = Math.min(page, totalPages);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+
+  const pageItems = offers.slice((safePage - 1) * perPage, safePage * perPage);
+
+  useEffect(() => {
+    const node = mobileRef.current;
+    if (!node || window.innerWidth >= 640) return;
+    node.scrollTo({ left: (safePage - 1) * node.clientWidth * (isArabic ? -1 : 1), behavior: 'smooth' });
+  }, [safePage, isArabic]);
+
+  return (
+    <section id="offers" className="offers-viewport-section scroll-mt-20 bg-blush-light px-4 sm:px-6 lg:px-8">
+      <div className="offers-inner mx-auto flex h-full max-w-7xl min-h-0 flex-col">
+        <div className="offers-heading text-center">
+          <p data-scroll-anchor className="mb-2 text-xs font-medium uppercase tracking-widest text-gold">{isArabic ? 'قيمة أكثر، عناية أكثر' : 'More beauty, better value'}</p>
+          <h2 className="font-serif text-3xl text-burgundy sm:text-4xl lg:text-5xl">{tr(labels.nav.offers, isArabic)}</h2>
+          <p className="mx-auto mt-2 max-w-2xl text-xs leading-relaxed text-muted sm:text-sm">
+            {isArabic ? 'باقات مختارة تجمع عدة علاجات بسعر خاص.' : 'Curated combinations of treatments together at a special package price.'}
+          </p>
+        </div>
+
+        <div className="offers-content mt-4 min-h-0 flex-1">
+          {loading ? (
+            <div className="flex h-full min-h-[260px] items-center justify-center rounded-3xl border border-blush bg-cream"><p className="font-serif text-2xl text-burgundy">{isArabic ? 'جارٍ تحميل العروض…' : 'Loading offers…'}</p></div>
+          ) : error ? (
+            <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-3xl border border-blush bg-cream px-5 text-center"><p className="font-serif text-2xl text-burgundy">{isArabic ? 'تعذر تحميل العروض' : 'Could not load offers'}</p><p className="mt-2 text-xs text-muted">{error}</p></div>
+          ) : offers.length === 0 ? (
+            <div className="flex h-full min-h-[260px] items-center justify-center rounded-3xl border border-dashed border-gold/35 bg-cream px-5 text-center"><p className="text-sm text-muted">{isArabic ? 'لا توجد عروض نشطة حالياً.' : 'No active packages yet.'}</p></div>
+          ) : (
+            <>
+              <div
+                ref={mobileRef}
+                data-touch-scroll
+                dir={isArabic ? 'rtl' : 'ltr'}
+                className="offers-mobile-carousel h-full sm:hidden"
+                onScroll={(event) => {
+                  const node = event.currentTarget;
+                  const width = node.clientWidth || 1;
+                  const raw = Math.abs(node.scrollLeft) / width;
+                  const next = Math.min(offers.length, Math.max(1, Math.round(raw) + 1));
+                  if (next !== page) setPage(next);
+                }}
+              >
+                {offers.map((offer) => <div key={offer.id} className="offers-mobile-page"><OfferCard offer={offer} isArabic={isArabic} /></div>)}
+              </div>
+              <div className="hidden h-full min-h-0 gap-4 sm:grid" style={{ gridTemplateColumns: `repeat(${perPage}, minmax(0, 1fr))` }}>
+                {pageItems.map((offer) => <OfferCard key={offer.id} offer={offer} isArabic={isArabic} />)}
+              </div>
+            </>
+          )}
+        </div>
+
+        {offers.length > perPage && (
+          <div className="offers-pagination mt-3 flex items-center justify-center gap-2">
+            <button onClick={() => setPage(Math.max(1, safePage - 1))} disabled={safePage <= 1} className="h-9 w-10 rounded-xl border border-blush bg-cream text-lg text-burgundy disabled:opacity-35" aria-label="Previous package">‹</button>
+            <span className="min-w-12 text-center text-xs font-semibold text-muted">{safePage} / {totalPages}</span>
+            <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} disabled={safePage >= totalPages} className="h-9 w-10 rounded-xl border border-blush bg-cream text-lg text-burgundy disabled:opacity-35" aria-label="Next package">›</button>
+          </div>
+        )}
+
+        <div className="offers-next mt-3 flex justify-center">
+          <SectionNextButton
+            targetId="about"
+            label={isArabic ? 'تعرّفي علينا' : 'Discover Our Story'}
+            ariaLabel={isArabic ? 'تعرّفي علينا' : 'Discover Our Story'}
+            onNavigate={onNavigate}
+          />
         </div>
       </div>
     </section>
@@ -798,17 +1013,17 @@ function InstagramFeedSection({ isArabic, onNavigate }: { isArabic: boolean; onN
 
 function ContactSection({ isArabic }: { isArabic: boolean }) {
   return (
-    <section id="contact" className="scroll-mt-24 bg-cream px-5 py-20 pb-32 sm:px-8 sm:py-28">
-      <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
-        <div className="rounded-2xl border border-blush bg-blush-light p-6 shadow-sm sm:p-8">
+    <section id="contact" className="contact-viewport-section scroll-mt-24 bg-cream px-5 sm:px-8">
+      <div className="contact-layout mx-auto grid max-w-7xl gap-4 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
+        <div className="contact-card rounded-2xl border border-blush bg-blush-light p-5 shadow-sm sm:p-6">
           <p data-scroll-anchor className="mb-3 text-xs font-medium uppercase tracking-widest text-gold">{tr(labels.nav.contact, isArabic)}</p>
           <h2 className="font-serif text-3xl text-burgundy sm:text-5xl">{isArabic ? 'الموقع والتواصل' : 'Location & Contact'}</h2>
-          <div className="mt-7 space-y-4 text-sm">
+          <div className="contact-details mt-5 space-y-3 text-sm">
             <p className="font-serif text-2xl leading-tight text-burgundy">Elaash Beauty Ladies Salon</p>
             <p><strong className="text-charcoal">{isArabic ? 'الموقع: ' : 'Location: '}</strong><span className="text-muted">Al Nahyan, Abu Dhabi</span></p>
             <p><strong className="text-charcoal">WhatsApp: </strong><a className="text-burgundy hover:text-gold" href={generalWhatsAppUrl(isArabic)} target="_blank" rel="noopener noreferrer">+971 54 500 6642</a></p>
           </div>
-          <div className="mt-7 flex flex-wrap gap-3">
+          <div className="contact-actions mt-5 flex flex-wrap gap-3">
             <a href={`tel:${PHONE_NUMBER}`} className="inline-flex items-center justify-center rounded-full bg-burgundy px-5 py-3 text-sm font-semibold text-cream shadow-sm hover:bg-burgundy-dark focus:outline-none focus:ring-2 focus:ring-gold">
               {isArabic ? 'اتصال' : 'Call'}
             </a>
@@ -817,7 +1032,7 @@ function ContactSection({ isArabic }: { isArabic: boolean }) {
               WhatsApp
             </a>
           </div>
-          <div className="mt-5 border-t border-burgundy/10 pt-5">
+          <div className="contact-social mt-4 border-t border-burgundy/10 pt-4">
             <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-gold">{isArabic ? 'تابعينا' : 'Follow Elaash'}</p>
             <div className="flex flex-wrap gap-2.5">
               <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" aria-label="Elaash Beauty on Instagram" className="inline-flex items-center gap-2 rounded-full border border-gold/45 bg-cream/70 px-4 py-2.5 text-xs font-semibold text-burgundy transition hover:border-gold hover:bg-cream hover:text-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
@@ -835,7 +1050,7 @@ function ContactSection({ isArabic }: { isArabic: boolean }) {
           <iframe
             title="Elaash Beauty Ladies Salon location"
             src={MAP_EMBED_URL}
-            className="block h-[280px] w-full border-0 sm:h-[360px]"
+            className="contact-map block h-full min-h-[220px] w-full border-0"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
             allowFullScreen
@@ -877,15 +1092,61 @@ function Footer({ onNavigate, isArabic }: { onNavigate: (id: SectionId) => void;
   );
 }
 
-function FloatingActions({ isArabic }: { isArabic: boolean }) {
+function MobileSectionNavigator({ active, isArabic, onNavigate }: { active: SectionId; isArabic: boolean; onNavigate: (id: SectionId) => void }) {
+  const [open, setOpen] = useState(false);
+  const currentIndex = Math.max(0, MOBILE_SECTION_ORDER.indexOf(active));
+  const next = MOBILE_SECTION_ORDER[Math.min(currentIndex + 1, MOBILE_SECTION_ORDER.length - 1)];
+  const nameFor = (id: SectionId) => {
+    if (id === 'instagram') return isArabic ? 'إنستغرام' : 'Instagram';
+    return tr(labels.nav[id], isArabic);
+  };
+
+  return (
+    <div className={`mobile-section-nav fixed left-1/2 z-40 -translate-x-1/2 sm:hidden ${active === 'contact' ? 'bottom-[6.25rem]' : 'bottom-[4.75rem]'}`}>
+      {open && (
+        <div className="mobile-section-menu mb-2 rounded-[22px] border border-gold/25 bg-cream/95 p-2 shadow-2xl backdrop-blur-xl">
+          {MOBILE_SECTION_ORDER.map((id, index) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => { onNavigate(id); setOpen(false); }}
+              className={`flex w-full items-center justify-between gap-5 rounded-2xl px-3 py-2 text-left text-xs font-semibold transition ${id === active ? 'bg-burgundy text-cream' : 'text-charcoal hover:bg-blush-light'}`}
+            >
+              <span>{nameFor(id)}</span>
+              <span className={`text-[10px] ${id === active ? 'text-gold-light' : 'text-muted'}`}>{String(index + 1).padStart(2, '0')}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-label={isArabic ? 'فتح قائمة الأقسام' : 'Open section navigator'}
+        className="mobile-section-pill flex min-w-[210px] items-center justify-between gap-3 rounded-full border border-gold/35 bg-burgundy-dark/95 px-3.5 py-2.5 text-cream shadow-2xl backdrop-blur-xl"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-cream/10 text-[10px] font-bold text-gold-light">{currentIndex + 1}</span>
+          <span className="min-w-0 text-left leading-tight">
+            <span className="block truncate text-[10px] uppercase tracking-[0.16em] text-cream/55">{nameFor(active)}</span>
+            <span className="block truncate text-xs font-semibold">{active === 'contact' ? (isArabic ? 'النهاية' : 'End') : `${isArabic ? 'التالي' : 'Next'} · ${nameFor(next)}`}</span>
+          </span>
+        </span>
+        <span className="text-gold-light">{open ? '×' : '⌃'}</span>
+      </button>
+    </div>
+  );
+}
+
+function FloatingActions({ isArabic, hideMobileBar = false }: { isArabic: boolean; hideMobileBar?: boolean }) {
   return (
     <>
       <a href={generalWhatsAppUrl(isArabic)} target="_blank" rel="noreferrer" className="fixed bottom-6 right-5 z-30 hidden h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg hover:scale-105 sm:flex" aria-label="Chat on WhatsApp"><WhatsAppIcon size={26} /></a>
-      <div className="mobile-action-bar fixed inset-x-0 bottom-0 z-30 flex border-t border-blush bg-cream shadow-2xl sm:hidden">
+      {!hideMobileBar && <div className="mobile-action-bar fixed inset-x-0 bottom-0 z-30 flex border-t border-blush bg-cream shadow-2xl sm:hidden">
         <a href={`tel:${PHONE_NUMBER}`} className="flex min-h-14 flex-1 items-center justify-center font-semibold text-burgundy">{isArabic ? 'اتصال' : 'Call'}</a>
         <div className="w-px bg-blush" />
         <a href={generalWhatsAppUrl(isArabic)} target="_blank" rel="noreferrer" className="flex min-h-14 flex-1 items-center justify-center gap-2 font-semibold text-[#25D366]"><WhatsAppIcon size={18} />WhatsApp</a>
-      </div>
+      </div>}
     </>
   );
 }
@@ -963,11 +1224,38 @@ export default function App() {
       const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
       if (visible?.target.id) setActiveSection(visible.target.id as SectionId);
     }, { rootMargin: '-30% 0px -55% 0px', threshold: [0.05, 0.25, 0.5] });
-    SECTION_IDS.forEach((id) => {
+    MOBILE_SECTION_ORDER.forEach((id) => {
       const element = document.getElementById(id);
       if (element) observer.observe(element);
     });
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const isMobile = () => window.matchMedia('(max-width: 639px)').matches;
+    let startX = 0;
+    let startY = 0;
+    const onTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      startX = touch.clientX;
+      startY = touch.clientY;
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      if (!isMobile() || event.touches.length !== 1) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('[data-touch-scroll], .admin-page, [role="dialog"]')) return;
+      const touch = event.touches[0];
+      const dx = Math.abs(touch.clientX - startX);
+      const dy = Math.abs(touch.clientY - startY);
+      if (dy > dx) event.preventDefault();
+    };
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
+    };
   }, []);
 
   return (
@@ -976,13 +1264,17 @@ export default function App() {
       <main>
         <Hero onNavigate={navigateToSection} isArabic={isArabic} />
         <ServicesSection isArabic={isArabic} setBooking={setBooking} onNavigate={navigateToSection} />
+        <OffersSection isArabic={isArabic} onNavigate={navigateToSection} />
         <AboutSection isArabic={isArabic} onNavigate={navigateToSection} />
         <GallerySection isArabic={isArabic} onNavigate={navigateToSection} />
         <InstagramFeedSection isArabic={isArabic} onNavigate={navigateToSection} />
-        <ContactSection isArabic={isArabic} />
+        <div className="contact-footer-shell">
+          <ContactSection isArabic={isArabic} />
+          <Footer onNavigate={navigateToSection} isArabic={isArabic} />
+        </div>
       </main>
-      <Footer onNavigate={navigateToSection} isArabic={isArabic} />
-      <FloatingActions isArabic={isArabic} />
+      <MobileSectionNavigator active={activeSection} isArabic={isArabic} onNavigate={navigateToSection} />
+      <FloatingActions isArabic={isArabic} hideMobileBar={activeSection === 'contact'} />
       <BookingDrawer service={booking} isArabic={isArabic} onClose={() => setBooking(null)} />
     </div>
   );

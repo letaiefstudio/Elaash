@@ -40,3 +40,25 @@ The first admin interface is available at `/admin` (also `?admin=1` or `#admin` 
 5. Create an admin user in Supabase Authentication > Users, then open `/admin` and sign in.
 
 The public Services section reads active rows from Supabase when available and falls back to the bundled catalogue if Supabase is not configured or the table is still empty.
+
+## Phase 2 — Offers & Packages
+
+This version adds a database-backed Offers & Packages section immediately after Services & Prices.
+
+Before using it, run `supabase/phase2_offers_packages.sql` once in Supabase SQL Editor. It creates:
+- `package_offers`
+- `package_offer_services`
+- public `offer-images` Storage bucket
+- RLS policies and grants
+
+Admin now has an **Offers & Packages** tab. Create a package, select treatments, optionally set quantities, enter the new offer price, and save. The regular/old price is calculated automatically from the currently selected treatment prices. The public section reads only from Supabase; there is no hardcoded package fallback.
+
+## Phase 4 — Customer accounts / My Elaash
+
+Run `supabase/phase4_customer_accounts.sql` once after Phase 2. It adds customer profiles, appointments and assigned customer packages with RLS.
+
+Public routes:
+- `/login` — customer sign in, sign up and password reset
+- `/account` — My Elaash customer portal
+
+After running the migration, mark the existing salon admin Auth user as admin with the final SQL line shown in that migration. This is required because customer accounts now use the same Supabase Auth project and admin writes must not be available to normal customers.

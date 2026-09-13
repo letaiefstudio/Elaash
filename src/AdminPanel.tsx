@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
+import AdminOffers from './AdminOffers';
 
 type DbCategory = {
   id: string;
@@ -63,6 +64,7 @@ function Login({ onReady }: { onReady: () => void }) {
 export default function AdminPanel() {
   const [sessionReady, setSessionReady] = useState(false);
   const [logged, setLogged] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [cats, setCats] = useState<DbCategory[]>([]);
   const [items, setItems] = useState<DbService[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -70,6 +72,7 @@ export default function AdminPanel() {
   const [search, setSearch] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [adminMode, setAdminMode] = useState<'services' | 'offers'>('services');
 
   const load = async () => {
     if (!supabase) return;
@@ -99,12 +102,27 @@ export default function AdminPanel() {
       setSessionReady(true);
       return;
     }
-    supabase.auth.getSession().then(({ data }) => {
-      setLogged(!!data.session);
+    const verifyAdmin = async (session: { user: { id: string } } | null) => {
+      if (!session) {
+        setLogged(false);
+        setAccessDenied(false);
+        setSessionReady(true);
+        return;
+      }
+      const { data: profile, error } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
+      if (error || profile?.role !== 'admin') {
+        setLogged(false);
+        setAccessDenied(true);
+        setSessionReady(true);
+        return;
+      }
+      setAccessDenied(false);
+      setLogged(true);
       setSessionReady(true);
-      if (data.session) load();
-    });
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => setLogged(!!session));
+      load();
+    };
+    supabase.auth.getSession().then(({ data }) => verifyAdmin(data.session));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => { void verifyAdmin(session); });
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -233,7 +251,8 @@ export default function AdminPanel() {
 
   if (!isSupabaseConfigured) return <div className="min-h-dvh bg-ivory p-8 text-charcoal"><div className="mx-auto max-w-xl rounded-2xl border border-gold/30 bg-cream p-6"><h1 className="font-serif text-3xl text-burgundy">Supabase key required</h1><p className="mt-3 text-sm leading-6 text-muted">Copy <b>.env.example</b> to <b>.env</b>, paste VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then restart the Vite server.</p></div></div>;
   if (!sessionReady) return <div className="min-h-dvh bg-ivory" />;
-  if (!logged) return <Login onReady={() => { setLogged(true); load(); }} />;
+  if (accessDenied) return <div className="min-h-dvh bg-ivory px-4 py-16 text-charcoal"><div className="mx-auto max-w-md rounded-3xl border border-blush bg-cream p-7 text-center shadow-xl"><img src="/images/logo.png" className="mx-auto h-20 w-auto" alt="Elaash" /><h1 className="mt-5 font-serif text-3xl text-burgundy">Admin access only</h1><p className="mt-3 text-sm leading-6 text-muted">This signed-in account is a customer account and cannot open the salon administration area.</p><button onClick={async () => { await supabase?.auth.signOut(); setAccessDenied(false); }} className="mt-6 h-11 w-full rounded-full bg-burgundy text-sm font-bold text-cream">Sign out and use admin account</button></div></div>;
+  if (!logged) return <Login onReady={() => { window.location.reload(); }} />;
 
   return (
     <div className="admin-page min-h-dvh overflow-x-hidden bg-ivory text-charcoal">
@@ -254,6 +273,14 @@ export default function AdminPanel() {
         </div>
       </header>
 
+      <div className="border-b border-blush bg-ivory">
+        <div className="admin-category-scroll mx-auto flex max-w-[1500px] gap-2 overflow-x-auto px-4 py-2 sm:px-7">
+          <button onClick={() => setAdminMode('services')} className={`min-h-10 shrink-0 rounded-full border px-4 text-xs font-bold ${adminMode === 'services' ? 'border-burgundy bg-burgundy text-cream' : 'border-blush bg-cream text-burgundy'}`}>Services & Prices</button>
+          <button onClick={() => setAdminMode('offers')} className={`min-h-10 shrink-0 rounded-full border px-4 text-xs font-bold ${adminMode === 'offers' ? 'border-burgundy bg-burgundy text-cream' : 'border-blush bg-cream text-burgundy'}`}>Offers & Packages</button>
+        </div>
+      </div>
+
+      {adminMode === 'services' ? (
       <div className="admin-shell mx-auto grid w-full max-w-[1500px] min-w-0 lg:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="admin-sidebar min-w-0 border-b border-blush bg-cream px-4 py-3 lg:sticky lg:top-20 lg:h-[calc(100dvh-5rem)] lg:border-b-0 lg:border-r lg:p-4">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-[.18em] text-gold lg:mb-3">Service sections</p>
@@ -327,6 +354,9 @@ export default function AdminPanel() {
           </div>
         </main>
       </div>
+      ) : (
+        <AdminOffers />
+      )}
     </div>
   );
 }
