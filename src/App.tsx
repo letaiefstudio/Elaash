@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCatalog } from './lib/catalog';
 import { offerOriginalPrice, useOffers, type OfferPackage } from './lib/offers';
+import { supabase } from './lib/supabase';
 import type { Category, Service } from './data/services';
 
 const WA_NUMBER = '971545006642';
@@ -299,6 +300,36 @@ function BookingDrawer({ service, isArabic, onClose }: { service: Service | null
 function Nav({ active, onNavigate, isArabic, setIsArabic, setBooking }: { active: SectionId; onNavigate: (id: SectionId) => void; isArabic: boolean; setIsArabic: (value: boolean) => void; setBooking: (service: Service) => void }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [customerName, setCustomerName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+    let activeListener = true;
+
+    const syncCustomer = async () => {
+      const { data } = await client.auth.getSession();
+      const session = data.session;
+      if (!activeListener) return;
+      if (!session) {
+        setCustomerName(null);
+        return;
+      }
+
+      const metadataName = String(session.user.user_metadata?.full_name || '').trim();
+      const fallback = metadataName || String(session.user.email || '').split('@')[0];
+      const { data: profile } = await client.from('profiles').select('full_name').eq('id', session.user.id).maybeSingle();
+      if (!activeListener) return;
+      setCustomerName(String(profile?.full_name || fallback || 'Customer').trim());
+    };
+
+    syncCustomer();
+    const { data: listener } = client.auth.onAuthStateChange(() => { void syncCustomer(); });
+    return () => {
+      activeListener = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     const update = () => setScrolled(window.scrollY > 16);
@@ -335,10 +366,16 @@ function Nav({ active, onNavigate, isArabic, setIsArabic, setBooking }: { active
         </div>
         <div className="hidden items-center gap-3 lg:flex">
           <button onClick={() => setIsArabic(!isArabic)} className="rounded-full px-3 py-2 text-xs font-semibold text-muted hover:text-burgundy focus:outline-none focus:ring-2 focus:ring-gold">{isArabic ? 'EN' : 'العربية'}</button>
-          <a href="/login" className="rounded-full border border-blush px-4 py-2.5 text-sm font-semibold text-burgundy transition hover:border-gold hover:bg-blush-light focus:outline-none focus:ring-2 focus:ring-gold">{isArabic ? 'تسجيل الدخول' : 'Sign in'}</a>
-          <button onClick={() => setBooking({ id: 'general', name: 'General Appointment', nameAr: 'موعد عام', category: 'service-charge', categoryName: 'General', categoryNameAr: 'عام', price: 0 })} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-semibold text-cream hover:bg-burgundy-dark focus:outline-none focus:ring-2 focus:ring-gold">
+          {customerName ? (
+            <a href="/account" className="max-w-[180px] truncate rounded-full border border-gold/35 bg-gold/10 px-4 py-2.5 text-sm font-semibold text-burgundy transition hover:bg-blush-light focus:outline-none focus:ring-2 focus:ring-gold">
+              {isArabic ? `مرحباً ${customerName}` : `Welcome, ${customerName}`}
+            </a>
+          ) : (
+            <a href="/login" className="rounded-full border border-blush px-4 py-2.5 text-sm font-semibold text-burgundy transition hover:border-gold hover:bg-blush-light focus:outline-none focus:ring-2 focus:ring-gold">{isArabic ? 'تسجيل الدخول' : 'Sign in'}</a>
+          )}
+          <a href="/book" className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-semibold text-cream hover:bg-burgundy-dark focus:outline-none focus:ring-2 focus:ring-gold">
             {tr(labels.bookNow, isArabic)}
-          </button>
+          </a>
         </div>
         <div className="flex items-center gap-2 lg:hidden">
           <button onClick={() => setIsArabic(!isArabic)} className="rounded-full px-3 py-2 text-xs font-semibold text-muted focus:outline-none focus:ring-2 focus:ring-gold">{isArabic ? 'EN' : 'ع'}</button>
@@ -356,7 +393,11 @@ function Nav({ active, onNavigate, isArabic, setIsArabic, setBooking }: { active
               {tr(labels.nav[id], isArabic)}
             </button>
           ))}
-          <a href="/login" className={`mt-2 block w-full rounded-xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm font-bold text-burgundy ${isArabic ? 'text-right' : 'text-left'}`}>{isArabic ? 'تسجيل الدخول / حسابي' : 'Sign in / My Elaash'}</a>
+          {customerName ? (
+            <a href="/account" className={`mt-2 block w-full rounded-xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm font-bold text-burgundy ${isArabic ? 'text-right' : 'text-left'}`}>{isArabic ? `مرحباً ${customerName}` : `Welcome, ${customerName}`}</a>
+          ) : (
+            <a href="/login" className={`mt-2 block w-full rounded-xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm font-bold text-burgundy ${isArabic ? 'text-right' : 'text-left'}`}>{isArabic ? 'تسجيل الدخول / حسابي' : 'Sign in / My Elaash'}</a>
+          )}
         </div>
       )}
     </nav>
@@ -489,7 +530,6 @@ function ServicesSection({ isArabic, setBooking, onNavigate }: { isArabic: boole
   const tabsRef = useRef<Record<string, HTMLButtonElement | null>>({});
   const tabScrollerRef = useRef<HTMLDivElement | null>(null);
   const didMountTabsRef = useRef(false);
-  const mobileCarouselRef = useRef<HTMLDivElement | null>(null);
   const query = search.trim().toLowerCase();
   const isSearching = query.length > 0;
   const resultKey = isSearching ? '__search' : activeCategory;
@@ -571,23 +611,7 @@ function ServicesSection({ isArabic, setBooking, onNavigate }: { isArabic: boole
   const setPage = (page: number) => {
     const nextPage = Math.min(Math.max(page, 1), totalPages);
     setPages((value) => ({ ...value, [resultKey]: nextPage }));
-    const node = mobileCarouselRef.current;
-    if (node && window.matchMedia('(max-width: 639px)').matches) {
-      node.scrollTo({ left: (nextPage - 1) * node.clientWidth * (isArabic ? -1 : 1), behavior: 'smooth' });
-    }
   };
-
-  useEffect(() => {
-    const node = mobileCarouselRef.current;
-    if (!node) return;
-    const onScroll = () => {
-      if (!window.matchMedia('(max-width: 639px)').matches || !node.clientWidth) return;
-      const page = Math.min(totalPages, Math.max(1, Math.round(Math.abs(node.scrollLeft) / node.clientWidth) + 1));
-      setPages((value) => value[resultKey] === page ? value : ({ ...value, [resultKey]: page }));
-    };
-    node.addEventListener('scroll', onScroll, { passive: true });
-    return () => node.removeEventListener('scroll', onScroll);
-  }, [resultKey, totalPages]);
 
   const activeIndex = orderedCategories.findIndex((category) => category.id === activeCategory);
   const scrollTabs = (direction: -1 | 1) => {
@@ -664,35 +688,18 @@ function ServicesSection({ isArabic, setBooking, onNavigate }: { isArabic: boole
               <p className="mt-2 text-sm text-muted">{tr(labels.noResultsHint, isArabic)}</p>
             </div>
           ) : (
-            <>
-              <div
-                ref={mobileCarouselRef}
-                data-touch-scroll
-                className="services-mobile-carousel sm:hidden"
-                dir={isArabic ? 'rtl' : 'ltr'}
-              >
-                {Array.from({ length: totalPages }, (_, pageIndex) => {
-                  const items = visibleServices.slice(pageIndex * pageSize, pageIndex * pageSize + pageSize);
-                  return (
-                    <div key={`${resultKey}-mobile-${pageIndex}`} className="services-mobile-page">
-                      {items.map((service) => <ServiceCard key={service.id} service={service} isArabic={isArabic} onBook={setBooking} />)}
-                    </div>
-                  );
-                })}
-              </div>
-              <div
-                key={`${resultKey}-${safePage}-${pageSize}`}
-                className="services-grid mx-auto hidden animate-card-page gap-[clamp(0.35rem,0.8vw,0.62rem)] sm:grid"
-                style={{
-                  ['--service-cols' as string]: gridConfig.columns,
-                  ['--service-rows' as string]: gridConfig.rows,
-                  gridTemplateColumns: `repeat(${gridConfig.columns}, minmax(0, 1fr))`,
-                  maxWidth: 'min(100%, calc((((100svh - 15rem - ((var(--service-rows) - 1) * clamp(0.35rem, 0.8vw, 0.62rem))) / var(--service-rows)) / 0.82) * var(--service-cols) + ((var(--service-cols) - 1) * clamp(0.35rem, 0.8vw, 0.62rem))))',
-                }}
-              >
-                {pageItems.map((service) => <ServiceCard key={service.id} service={service} isArabic={isArabic} onBook={setBooking} />)}
-              </div>
-            </>
+            <div
+              key={`${resultKey}-${safePage}-${pageSize}`}
+              className="services-grid mx-auto grid animate-card-page gap-[clamp(0.35rem,0.8vw,0.62rem)]"
+              style={{
+                ['--service-cols' as string]: gridConfig.columns,
+                ['--service-rows' as string]: gridConfig.rows,
+                gridTemplateColumns: `repeat(${gridConfig.columns}, minmax(0, 1fr))`,
+                maxWidth: 'min(100%, calc((((100svh - 15rem - ((var(--service-rows) - 1) * clamp(0.35rem, 0.8vw, 0.62rem))) / var(--service-rows)) / 0.82) * var(--service-cols) + ((var(--service-cols) - 1) * clamp(0.35rem, 0.8vw, 0.62rem))))',
+              }}
+            >
+              {pageItems.map((service) => <ServiceCard key={service.id} service={service} isArabic={isArabic} onBook={setBooking} />)}
+            </div>
           )}
 
           <PaginationControls page={safePage} totalPages={totalPages} setPage={setPage} isArabic={isArabic} />

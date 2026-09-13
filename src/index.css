@@ -805,32 +805,6 @@ input[type='date']::-webkit-calendar-picker-indicator {
 }
 
 /* Phase 1 public UX only: touch navigation, swipeable service pages, and contact/footer viewport fit. */
-.services-mobile-carousel {
-  display: flex;
-  width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.services-mobile-carousel::-webkit-scrollbar {
-  display: none;
-}
-
-.services-mobile-page {
-  flex: 0 0 100%;
-  width: 100%;
-  min-width: 100%;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.35rem;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-}
-
 .mobile-section-nav {
   width: min(88vw, 18.5rem);
   pointer-events: none;

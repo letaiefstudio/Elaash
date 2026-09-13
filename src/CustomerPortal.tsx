@@ -86,7 +86,7 @@ export default function CustomerPortal() {
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold">Welcome back</p>
           <div className="mt-3 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div><h1 className="font-serif text-4xl sm:text-5xl">{name}</h1><p className="mt-2 text-sm text-cream/70">Your Elaash appointments and packages.</p></div>
-            <a href="/#services" className="inline-flex min-h-11 items-center justify-center rounded-full bg-cream px-5 text-sm font-bold text-burgundy">Book a treatment</a>
+            <a href="/book" className="inline-flex min-h-11 items-center justify-center rounded-full bg-cream px-5 text-sm font-bold text-burgundy">Book a treatment</a>
           </div>
         </section>
 
@@ -111,5 +111,5 @@ export default function CustomerPortal() {
 }
 
 function Empty({ title, text }: { title: string; text: string }) {
-  return <div className="rounded-3xl border border-dashed border-gold/40 bg-cream p-10 text-center"><p className="font-serif text-2xl text-burgundy">{title}</p><p className="mt-2 text-sm text-muted">{text}</p><a href="/#services" className="mt-5 inline-flex rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-cream">Explore services</a></div>;
+  return <div className="rounded-3xl border border-dashed border-gold/40 bg-cream p-10 text-center"><p className="font-serif text-2xl text-burgundy">{title}</p><p className="mt-2 text-sm text-muted">{text}</p><a href="/book" className="mt-5 inline-flex rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-cream">Book a treatment</a></div>;
 }
