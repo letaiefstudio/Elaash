@@ -1181,9 +1181,12 @@ function MobileSectionNavigator({ active, isArabic, onNavigate, hideActions = fa
   };
 
   return (
-    <div className={`mobile-bottom-dock fixed inset-x-0 bottom-0 z-40 sm:hidden ${active === 'contact' ? 'mobile-bottom-dock-contact' : ''}`}>
+    <div
+      className={`mobile-bottom-dock fixed inset-x-0 bottom-0 z-40 sm:hidden ${active === 'contact' ? 'mobile-bottom-dock-contact' : ''}`}
+      style={{ position: 'fixed', left: 0, right: 0, bottom: 0, width: '100%', maxWidth: 'none', margin: 0, padding: 0, borderRadius: 0 }}
+    >
       {open && (
-        <div className="mobile-section-menu border-x border-t border-gold/25 bg-cream/98 p-2 shadow-2xl backdrop-blur-xl">
+        <div className="mobile-section-menu border-t border-gold/25 bg-cream p-2">
           {MOBILE_SECTION_ORDER.map((id, index) => (
             <button key={id} type="button" onClick={() => { onNavigate(id); setOpen(false); }} className={`flex w-full items-center justify-between gap-5 rounded-2xl px-3 py-2 text-left text-xs font-semibold transition ${id === active ? 'bg-burgundy text-cream' : 'text-charcoal hover:bg-blush-light'}`}>
               <span>{nameFor(id)}</span>
@@ -1192,7 +1195,10 @@ function MobileSectionNavigator({ active, isArabic, onNavigate, hideActions = fa
           ))}
         </div>
       )}
-      <div className={`mobile-premium-dock grid items-stretch overflow-hidden border-t border-gold/30 bg-burgundy-dark/98 shadow-2xl backdrop-blur-xl ${hideActions ? 'grid-cols-1' : 'grid-cols-[4.4rem_1fr_4.4rem]'}`}>
+      <div
+        className={`mobile-premium-dock grid items-stretch border-t border-gold/30 bg-burgundy-dark ${hideActions ? 'grid-cols-1' : 'grid-cols-[4.4rem_1fr_4.4rem]'}`}
+        style={{ width: '100%', maxWidth: 'none', margin: 0, borderRadius: 0, boxShadow: 'none', background: '#4A1019' }}
+      >
         {!hideActions && (
           <a href={`tel:${PHONE_NUMBER}`} className="mobile-dock-action flex flex-col items-center justify-center gap-0.5 border-r border-cream/10 px-2 py-2 text-cream" aria-label={isArabic ? 'اتصال' : 'Call'}>
             <span className="text-base leading-none">☎</span>

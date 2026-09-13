@@ -1,4 +1,4 @@
-const CACHE_NAME = 'elaash-app-v1';
+const CACHE_NAME = 'elaash-app-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
