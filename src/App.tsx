@@ -451,7 +451,7 @@ function Nav({ active, onNavigate, isArabic, setIsArabic, setBooking }: { active
 
 function Hero({ onNavigate, isArabic }: { onNavigate: (id: SectionId) => void; isArabic: boolean }) {
   return (
-    <section id="home" className="relative flex min-h-screen scroll-mt-24 items-center justify-center overflow-hidden pb-24">
+    <section id="home" className="hero-viewport-section relative flex scroll-mt-24 items-center justify-center overflow-hidden">
       <img src="https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=1920&h=1080&fit=crop&auto=format" alt="Luxury spa" className="absolute inset-0 h-full w-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-b from-burgundy-dark/80 via-burgundy-dark/70 to-burgundy-dark/90" />
       <div className="relative z-10 mx-auto max-w-3xl px-5 text-center">
@@ -1181,9 +1181,9 @@ function MobileSectionNavigator({ active, isArabic, onNavigate, hideActions = fa
   };
 
   return (
-    <div className="mobile-bottom-dock fixed inset-x-3 bottom-[calc(.65rem+env(safe-area-inset-bottom))] z-40 sm:hidden">
+    <div className={`mobile-bottom-dock fixed inset-x-0 bottom-0 z-40 sm:hidden ${active === 'contact' ? 'mobile-bottom-dock-contact' : ''}`}>
       {open && (
-        <div className="mobile-section-menu mb-2 rounded-[22px] border border-gold/25 bg-cream/95 p-2 shadow-2xl backdrop-blur-xl">
+        <div className="mobile-section-menu border-x border-t border-gold/25 bg-cream/98 p-2 shadow-2xl backdrop-blur-xl">
           {MOBILE_SECTION_ORDER.map((id, index) => (
             <button key={id} type="button" onClick={() => { onNavigate(id); setOpen(false); }} className={`flex w-full items-center justify-between gap-5 rounded-2xl px-3 py-2 text-left text-xs font-semibold transition ${id === active ? 'bg-burgundy text-cream' : 'text-charcoal hover:bg-blush-light'}`}>
               <span>{nameFor(id)}</span>
@@ -1192,7 +1192,7 @@ function MobileSectionNavigator({ active, isArabic, onNavigate, hideActions = fa
           ))}
         </div>
       )}
-      <div className={`mobile-premium-dock grid items-stretch overflow-hidden rounded-[22px] border border-gold/30 bg-burgundy-dark/95 shadow-2xl backdrop-blur-xl ${hideActions ? 'grid-cols-1' : 'grid-cols-[4.1rem_1fr_4.1rem]'}`}>
+      <div className={`mobile-premium-dock grid items-stretch overflow-hidden border-t border-gold/30 bg-burgundy-dark/98 shadow-2xl backdrop-blur-xl ${hideActions ? 'grid-cols-1' : 'grid-cols-[4.4rem_1fr_4.4rem]'}`}>
         {!hideActions && (
           <a href={`tel:${PHONE_NUMBER}`} className="mobile-dock-action flex flex-col items-center justify-center gap-0.5 border-r border-cream/10 px-2 py-2 text-cream" aria-label={isArabic ? 'اتصال' : 'Call'}>
             <span className="text-base leading-none">☎</span>
@@ -1239,11 +1239,9 @@ export default function App() {
       if (id === 'home') return 0;
       const section = document.getElementById(id);
       if (!section) return null;
-      const target = section.querySelector<HTMLElement>('[data-scroll-anchor]') ?? section;
       const headerBar = document.querySelector<HTMLElement>('[data-site-header-bar]');
       const headerHeight = headerBar?.getBoundingClientRect().height ?? 0;
-      const visualGap = window.matchMedia('(max-width: 639px)').matches ? 16 : 22;
-      return Math.max(0, Math.round(target.getBoundingClientRect().top + window.scrollY - headerHeight - visualGap));
+      return Math.max(0, Math.round(section.getBoundingClientRect().top + window.scrollY - headerHeight));
     };
 
     const scrollExactly = (behavior: ScrollBehavior) => {
@@ -1344,9 +1342,13 @@ export default function App() {
         <div className="contact-footer-shell">
           <ContactSection isArabic={isArabic} />
           <Footer onNavigate={navigateToSection} isArabic={isArabic} />
+          <div className="contact-final-actions sm:hidden">
+            <a href={`tel:${PHONE_NUMBER}`} className="contact-final-action" aria-label={isArabic ? 'اتصال' : 'Call'}><span aria-hidden="true">☎</span><span>{isArabic ? 'اتصال' : 'Call'}</span></a>
+            <a href={generalWhatsAppUrl(isArabic)} target="_blank" rel="noreferrer" className="contact-final-action" aria-label="WhatsApp"><WhatsAppIcon size={18} /><span>WhatsApp</span></a>
+          </div>
         </div>
       </main>
-      <MobileSectionNavigator active={activeSection} isArabic={isArabic} onNavigate={navigateToSection} hideActions={activeSection === 'contact'} />
+      <MobileSectionNavigator active={activeSection} isArabic={isArabic} onNavigate={navigateToSection} />
       <FloatingActions isArabic={isArabic} />
       <BookingDrawer service={booking} isArabic={isArabic} onClose={() => setBooking(null)} />
     </div>
