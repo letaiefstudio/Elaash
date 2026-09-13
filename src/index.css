@@ -1550,3 +1550,47 @@ input[type='date']::-webkit-calendar-picker-indicator {
     box-shadow: none !important;
   }
 }
+
+/* Phase 4D — public site is now true route-based pages, not one long scrolling document. */
+.public-page-shell {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.public-page-main {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.public-page-main > .hero-viewport-section,
+.public-page-main > .services-section,
+.public-page-main > .offers-viewport-section,
+.public-page-main > .about-viewport-section,
+.public-page-main > .gallery-viewport-section,
+.public-page-main > .instagram-feed-section,
+.public-page-main > .contact-footer-shell {
+  margin-top: var(--elaash-header-h);
+  height: calc(100dvh - var(--elaash-header-h));
+  min-height: 0;
+  max-height: calc(100dvh - var(--elaash-header-h));
+  overflow: hidden;
+}
+
+@media (max-width: 639px) {
+  .public-page-main > .hero-viewport-section,
+  .public-page-main > .services-section,
+  .public-page-main > .offers-viewport-section,
+  .public-page-main > .about-viewport-section,
+  .public-page-main > .gallery-viewport-section,
+  .public-page-main > .instagram-feed-section,
+  .public-page-main > .contact-footer-shell {
+    margin-top: 4rem;
+    height: calc(100dvh - 4rem);
+    max-height: calc(100dvh - 4rem);
+  }
+
+  /* The final Contact page already includes its own Call / WhatsApp row. */
+  .public-page-main > .contact-footer-shell + * {
+    display: none;
+  }
+}

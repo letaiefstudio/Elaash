@@ -13,6 +13,21 @@ const FACEBOOK_URL = 'https://www.facebook.com/share/1BsGojqrsp/?mibextid=wwXIfr
 const SECTION_IDS = ['home', 'services', 'offers', 'about', 'gallery', 'contact'] as const;
 type SectionId = typeof SECTION_IDS[number] | 'instagram';
 const MOBILE_SECTION_ORDER: SectionId[] = ['home', 'services', 'offers', 'about', 'gallery', 'instagram', 'contact'];
+const SECTION_PATHS: Record<SectionId, string> = {
+  home: '/',
+  services: '/services',
+  offers: '/offers',
+  about: '/about',
+  gallery: '/gallery',
+  instagram: '/instagram',
+  contact: '/contact',
+};
+
+function sectionFromPath(pathname: string): SectionId {
+  const path = pathname.replace(/\/$/, '') || '/';
+  const found = (Object.entries(SECTION_PATHS) as [SectionId, string][]).find(([, value]) => value === path);
+  return found?.[0] ?? 'home';
+}
 
 const labels = {
   nav: {
@@ -1231,7 +1246,7 @@ function FloatingActions({ isArabic }: { isArabic: boolean }) {
 }
 
 export default function App() {
-  const [activeSection, setActiveSection] = useState<SectionId>('home');
+  const [activeSection] = useState<SectionId>(() => sectionFromPath(window.location.pathname));
   const [isArabic, setIsArabic] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('elaash-language') === 'ar';
@@ -1239,56 +1254,10 @@ export default function App() {
   const [booking, setBooking] = useState<Service | null>(null);
 
   const navigateToSection = (id: SectionId) => {
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    const getDestination = () => {
-      if (id === 'home') return 0;
-      const section = document.getElementById(id);
-      if (!section) return null;
-      const headerBar = document.querySelector<HTMLElement>('[data-site-header-bar]');
-      const headerHeight = headerBar?.getBoundingClientRect().height ?? 0;
-      return Math.max(0, Math.round(section.getBoundingClientRect().top + window.scrollY - headerHeight));
-    };
-
-    const scrollExactly = (behavior: ScrollBehavior) => {
-      const top = getDestination();
-      if (top == null) return;
-      window.scrollTo({ top, left: 0, behavior });
-    };
-
-    // Measure after the current click/menu state has committed, then make one
-    // quiet final correction after smooth scrolling. This avoids iOS Safari
-    // stopping a few pixels early/late when fixed UI changes during the click.
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        scrollExactly(prefersReducedMotion ? 'auto' : 'smooth');
-        if (!prefersReducedMotion) {
-          window.setTimeout(() => {
-            const desired = getDestination();
-            if (desired != null && Math.abs(window.scrollY - desired) > 2) {
-              window.scrollTo({ top: desired, left: 0, behavior: 'auto' });
-            }
-          }, 700);
-        }
-      });
-    });
-
-    window.history.replaceState(null, '', `#${id}`);
-    setActiveSection(id);
+    const destination = SECTION_PATHS[id];
+    if (window.location.pathname === destination) return;
+    window.location.assign(destination);
   };
-
-  useEffect(() => {
-    if ('scrollRestoration' in window.history) {
-      window.history.scrollRestoration = 'manual';
-    }
-
-    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: 'auto',
-    });
-  }, []);
 
   useEffect(() => {
     document.documentElement.lang = isArabic ? 'ar' : 'en';
@@ -1296,64 +1265,39 @@ export default function App() {
     window.localStorage.setItem('elaash-language', isArabic ? 'ar' : 'en');
   }, [isArabic]);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      if (visible?.target.id) setActiveSection(visible.target.id as SectionId);
-    }, { rootMargin: '-30% 0px -55% 0px', threshold: [0.05, 0.25, 0.5] });
-    MOBILE_SECTION_ORDER.forEach((id) => {
-      const element = document.getElementById(id);
-      if (element) observer.observe(element);
-    });
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const isMobile = () => window.matchMedia('(max-width: 639px)').matches;
-    let startX = 0;
-    let startY = 0;
-    const onTouchStart = (event: TouchEvent) => {
-      const touch = event.touches[0];
-      if (!touch) return;
-      startX = touch.clientX;
-      startY = touch.clientY;
-    };
-    const onTouchMove = (event: TouchEvent) => {
-      if (!isMobile() || event.touches.length !== 1) return;
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('[data-touch-scroll], .admin-page, [role="dialog"]')) return;
-      const touch = event.touches[0];
-      const dx = Math.abs(touch.clientX - startX);
-      const dy = Math.abs(touch.clientY - startY);
-      if (dy > dx) event.preventDefault();
-    };
-    document.addEventListener('touchstart', onTouchStart, { passive: true });
-    document.addEventListener('touchmove', onTouchMove, { passive: false });
-    return () => {
-      document.removeEventListener('touchstart', onTouchStart);
-      document.removeEventListener('touchmove', onTouchMove);
-    };
-  }, []);
+  const renderPage = () => {
+    switch (activeSection) {
+      case 'services':
+        return <ServicesSection isArabic={isArabic} setBooking={setBooking} onNavigate={navigateToSection} />;
+      case 'offers':
+        return <OffersSection isArabic={isArabic} onNavigate={navigateToSection} />;
+      case 'about':
+        return <AboutSection isArabic={isArabic} onNavigate={navigateToSection} />;
+      case 'gallery':
+        return <GallerySection isArabic={isArabic} onNavigate={navigateToSection} />;
+      case 'instagram':
+        return <InstagramFeedSection isArabic={isArabic} onNavigate={navigateToSection} />;
+      case 'contact':
+        return (
+          <div className="contact-footer-shell">
+            <ContactSection isArabic={isArabic} />
+            <Footer onNavigate={navigateToSection} isArabic={isArabic} />
+            <div className="contact-final-actions sm:hidden">
+              <a href={`tel:${PHONE_NUMBER}`} className="contact-final-action" aria-label={isArabic ? 'اتصال' : 'Call'}><span aria-hidden="true">☎</span><span>{isArabic ? 'اتصال' : 'Call'}</span></a>
+              <a href={generalWhatsAppUrl(isArabic)} target="_blank" rel="noreferrer" className="contact-final-action" aria-label="WhatsApp"><WhatsAppIcon size={18} /><span>WhatsApp</span></a>
+            </div>
+          </div>
+        );
+      case 'home':
+      default:
+        return <Hero onNavigate={navigateToSection} isArabic={isArabic} />;
+    }
+  };
 
   return (
-    <div dir={isArabic ? 'rtl' : 'ltr'} className="min-h-full overflow-x-hidden bg-ivory text-charcoal">
+    <div dir={isArabic ? 'rtl' : 'ltr'} className="public-page-shell min-h-full overflow-x-hidden bg-ivory text-charcoal">
       <Nav active={activeSection} onNavigate={navigateToSection} isArabic={isArabic} setIsArabic={setIsArabic} setBooking={setBooking} />
-      <main>
-        <Hero onNavigate={navigateToSection} isArabic={isArabic} />
-        <ServicesSection isArabic={isArabic} setBooking={setBooking} onNavigate={navigateToSection} />
-        <OffersSection isArabic={isArabic} onNavigate={navigateToSection} />
-        <AboutSection isArabic={isArabic} onNavigate={navigateToSection} />
-        <GallerySection isArabic={isArabic} onNavigate={navigateToSection} />
-        <InstagramFeedSection isArabic={isArabic} onNavigate={navigateToSection} />
-        <div className="contact-footer-shell">
-          <ContactSection isArabic={isArabic} />
-          <Footer onNavigate={navigateToSection} isArabic={isArabic} />
-          <div className="contact-final-actions sm:hidden">
-            <a href={`tel:${PHONE_NUMBER}`} className="contact-final-action" aria-label={isArabic ? 'اتصال' : 'Call'}><span aria-hidden="true">☎</span><span>{isArabic ? 'اتصال' : 'Call'}</span></a>
-            <a href={generalWhatsAppUrl(isArabic)} target="_blank" rel="noreferrer" className="contact-final-action" aria-label="WhatsApp"><WhatsAppIcon size={18} /><span>WhatsApp</span></a>
-          </div>
-        </div>
-      </main>
+      <main className="public-page-main">{renderPage()}</main>
       <MobileSectionNavigator active={activeSection} isArabic={isArabic} onNavigate={navigateToSection} />
       <FloatingActions isArabic={isArabic} />
       <BookingDrawer service={booking} isArabic={isArabic} onClose={() => setBooking(null)} />
