@@ -1,0 +1,42 @@
+{
+  "id": "/",
+  "name": "Elaash Beauty Ladies Salon",
+  "short_name": "Elaash",
+  "description": "Elaash Beauty Ladies Salon in Al Nahyan, Abu Dhabi.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#FAF7F0",
+  "theme_color": "#6B1D2A",
+  "lang": "en",
+  "dir": "auto",
+  "categories": ["lifestyle", "beauty"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

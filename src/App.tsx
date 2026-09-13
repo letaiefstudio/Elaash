@@ -336,7 +336,7 @@ function Nav({ active, onNavigate, isArabic, setIsArabic, setBooking }: { active
         <div className="hidden items-center gap-3 lg:flex">
           <button onClick={() => setIsArabic(!isArabic)} className="rounded-full px-3 py-2 text-xs font-semibold text-muted hover:text-burgundy focus:outline-none focus:ring-2 focus:ring-gold">{isArabic ? 'EN' : 'العربية'}</button>
           <a href="/login" className="rounded-full border border-blush px-4 py-2.5 text-sm font-semibold text-burgundy transition hover:border-gold hover:bg-blush-light focus:outline-none focus:ring-2 focus:ring-gold">{isArabic ? 'تسجيل الدخول' : 'Sign in'}</a>
-          <button onClick={() => setBooking({ id: 'general', name: 'General Appointment', nameAr: 'موعد عام', category: 'service-charge', price: 0 })} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-semibold text-cream hover:bg-burgundy-dark focus:outline-none focus:ring-2 focus:ring-gold">
+          <button onClick={() => setBooking({ id: 'general', name: 'General Appointment', nameAr: 'موعد عام', category: 'service-charge', categoryName: 'General', categoryNameAr: 'عام', price: 0 })} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-semibold text-cream hover:bg-burgundy-dark focus:outline-none focus:ring-2 focus:ring-gold">
             {tr(labels.bookNow, isArabic)}
           </button>
         </div>

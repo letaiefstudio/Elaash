@@ -102,6 +102,7 @@ export default function AdminPanel() {
       setSessionReady(true);
       return;
     }
+    const client = supabase;
     const verifyAdmin = async (session: { user: { id: string } } | null) => {
       if (!session) {
         setLogged(false);
@@ -109,7 +110,7 @@ export default function AdminPanel() {
         setSessionReady(true);
         return;
       }
-      const { data: profile, error } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
+      const { data: profile, error } = await client.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
       if (error || profile?.role !== 'admin') {
         setLogged(false);
         setAccessDenied(true);
@@ -121,8 +122,8 @@ export default function AdminPanel() {
       setSessionReady(true);
       load();
     };
-    supabase.auth.getSession().then(({ data }) => verifyAdmin(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => { void verifyAdmin(session); });
+    client.auth.getSession().then(({ data }) => verifyAdmin(data.session));
+    const { data } = client.auth.onAuthStateChange((_event, session) => { void verifyAdmin(session); });
     return () => data.subscription.unsubscribe();
   }, []);
 
