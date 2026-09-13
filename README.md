@@ -62,3 +62,6 @@ Public routes:
 - `/account` — My Elaash customer portal
 
 After running the migration, mark the existing salon admin Auth user as admin with the final SQL line shown in that migration. This is required because customer accounts now use the same Supabase Auth project and admin writes must not be available to normal customers.
+
+### Customer booking save migration
+After the Phase 4 customer-account migration, run `supabase/phase4b_customer_booking.sql` once. It allows a signed-in customer to insert only an appointment belonging to their own account. The booking page saves the appointment as `pending` before opening WhatsApp, so it appears in **My Elaash → Appointments**.

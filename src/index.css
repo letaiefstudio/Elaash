@@ -1113,3 +1113,130 @@ input[type='date']::-webkit-calendar-picker-indicator {
     margin-top: 0.65rem;
   }
 }
+
+/* Phase 4 polish — About viewport + unified premium mobile navigation dock. */
+.about-viewport-section {
+  height: calc(100svh - 5rem);
+  min-height: 600px;
+  overflow: hidden;
+  padding-block: clamp(1rem, 2.2vh, 1.7rem);
+}
+
+.about-inner {
+  height: calc(100% - 3.5rem);
+  min-height: 0;
+}
+
+.about-visual {
+  height: 100%;
+}
+
+.mobile-bottom-dock {
+  width: auto;
+  pointer-events: none;
+}
+
+.mobile-bottom-dock > * {
+  pointer-events: auto;
+}
+
+.mobile-premium-dock {
+  min-height: 3.65rem;
+}
+
+.mobile-dock-action,
+.mobile-section-pill {
+  transition: background-color .2s ease, transform .2s ease;
+}
+
+.mobile-dock-action:active,
+.mobile-section-pill:active {
+  background: rgba(255,255,255,.08);
+}
+
+@media (max-width: 639px) {
+  .about-viewport-section {
+    height: calc(100svh - 4rem);
+    min-height: 540px;
+    padding-block: .75rem calc(4.85rem + env(safe-area-inset-bottom));
+  }
+
+  .about-inner {
+    height: calc(100% - 2.6rem);
+    grid-template-rows: auto minmax(9rem, 1fr);
+    gap: .65rem;
+  }
+
+  .about-copy h2 {
+    font-size: clamp(1.65rem, 7vw, 2rem);
+  }
+
+  .about-intro {
+    margin-top: .45rem;
+    font-size: .72rem;
+    line-height: 1.15rem;
+  }
+
+  .about-highlights {
+    margin-top: .55rem;
+    gap: .4rem;
+  }
+
+  .about-highlights article {
+    border-radius: .9rem;
+    padding: .55rem .65rem;
+  }
+
+  .about-highlights article > p:first-child {
+    font-size: .8rem;
+  }
+
+  .about-highlights article > p:last-child {
+    margin-top: .15rem;
+    font-size: .61rem;
+    line-height: .82rem;
+  }
+
+  .about-promise {
+    margin-top: .55rem;
+    border-radius: .9rem;
+    padding: .55rem .75rem;
+  }
+
+  .about-promise p:last-child {
+    font-size: .9rem;
+  }
+
+  .about-visual {
+    min-height: 9rem;
+  }
+
+  .about-next {
+    margin-top: .55rem;
+  }
+
+  /* The old separate call/WhatsApp bar is intentionally replaced by the unified dock. */
+  .mobile-action-bar,
+  .mobile-section-nav {
+    display: none !important;
+  }
+}
+
+@media (min-width: 640px) and (max-height: 760px) {
+  .about-viewport-section {
+    min-height: 0;
+    padding-block: .75rem;
+  }
+
+  .about-copy h2 {
+    font-size: 2.45rem;
+  }
+
+  .about-highlights {
+    margin-top: .7rem;
+  }
+
+  .about-promise {
+    margin-top: .7rem;
+  }
+}

@@ -25,6 +25,9 @@ export default function BookingPage() {
   const [time, setTime] = useState('');
   const [notes, setNotes] = useState('');
   const [accountName, setAccountName] = useState<string | null>(null);
+  const [accountUserId, setAccountUserId] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState('');
+  const [savingBooking, setSavingBooking] = useState(false);
 
   useEffect(() => {
     if (!activeCategory && categories.length) setActiveCategory(categories[0].id);
@@ -38,6 +41,7 @@ export default function BookingPage() {
       const { data } = await client.auth.getSession();
       if (!mounted || !data.session) return;
       const session = data.session;
+      setAccountUserId(session.user.id);
       const fallback = String(session.user.user_metadata?.full_name || session.user.email || '').split('@')[0];
       const { data: profile } = await client.from('profiles').select('full_name').eq('id', session.user.id).maybeSingle();
       if (!mounted) return;
@@ -55,19 +59,55 @@ export default function BookingPage() {
     return services.filter((service) => service.category === activeCategory);
   }, [services, search, activeCategory]);
 
-  const continueWhatsApp = () => {
-    if (!selected) return;
+  const continueWhatsApp = async () => {
+    if (!selected || savingBooking) return;
+    setBookingError('');
+
+    if (!accountUserId) {
+      setBookingError('Please sign in first so this appointment can be saved under My Elaash.');
+      return;
+    }
+    if (!date) {
+      setBookingError('Please choose your preferred appointment date.');
+      return;
+    }
+    if (!supabase) {
+      setBookingError('Booking storage is not connected right now. Please try again shortly.');
+      return;
+    }
+
+    setSavingBooking(true);
+    const client = supabase;
+    const { error: saveError } = await client.from('appointments').insert({
+      customer_id: accountUserId,
+      service_id: selected.id,
+      appointment_date: date,
+      appointment_time: time || null,
+      status: 'pending',
+      notes: notes.trim() || null,
+      source: 'website_whatsapp',
+    });
+
+    if (saveError) {
+      setSavingBooking(false);
+      setBookingError(`${saveError.message} If this is your first booking after the update, run supabase/phase4b_customer_booking.sql once.`);
+      return;
+    }
+
     const lines = [
       'Hello Elaash Beauty, I would like to book a treatment.',
       '',
       `Treatment: ${selected.name}`,
       `Price: ${priceLabel(selected.price)}`,
       customerName.trim() ? `Name: ${customerName.trim()}` : '',
-      date ? `Preferred date: ${date}` : '',
+      `Preferred date: ${date}`,
       time ? `Preferred time: ${time}` : '',
       notes.trim() ? `Message: ${notes.trim()}` : '',
+      '',
+      'Booking saved in My Elaash as Pending.',
     ].filter(Boolean);
-    window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank', 'noopener,noreferrer');
+
+    window.location.href = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(lines.join('\n'))}`;
   };
 
   return (
@@ -143,7 +183,13 @@ export default function BookingPage() {
               <label><span className="mb-1 block text-xs font-semibold text-muted">Preferred time</span><input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="h-11 w-full rounded-xl border border-blush bg-ivory px-3 text-sm outline-none focus:border-gold" /></label>
               <label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-muted">Optional message</span><textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full rounded-xl border border-blush bg-ivory px-4 py-3 text-sm outline-none focus:border-gold" /></label>
             </div>
-            <button onClick={continueWhatsApp} className="mt-5 h-12 w-full rounded-full bg-[#25D366] px-5 text-sm font-bold text-white">Continue on WhatsApp</button>
+            {bookingError && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {bookingError}
+                {!accountUserId && <a href="/login" className="ml-1 font-bold underline">Sign in</a>}
+              </div>
+            )}
+            <button onClick={() => void continueWhatsApp()} disabled={savingBooking} className="mt-5 h-12 w-full rounded-full bg-[#25D366] px-5 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60">{savingBooking ? 'Saving appointment…' : 'Save & Continue on WhatsApp'}</button>
           </section>
         </div>
       )}

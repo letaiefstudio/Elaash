@@ -176,12 +176,26 @@ function SectionNextButton({ targetId, label, ariaLabel, onNavigate }: { targetI
   );
 }
 
+function bookingTimeToSql(value: string) {
+  if (!value) return null;
+  const match = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return value.length === 5 ? `${value}:00` : value;
+  let hours = Number(match[1]);
+  const minutes = match[2];
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+  return `${String(hours).padStart(2, '0')}:${minutes}:00`;
+}
+
 function BookingDrawer({ service, isArabic, onClose }: { service: Service | null; isArabic: boolean; onClose: () => void }) {
   const [name, setName] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
+  const [bookingError, setBookingError] = useState('');
+  const [savingBooking, setSavingBooking] = useState(false);
 
   useEffect(() => {
     if (!service) return;
@@ -190,6 +204,8 @@ function BookingDrawer({ service, isArabic, onClose }: { service: Service | null
     setTime('');
     setMessage('');
     setSent(false);
+    setBookingError('');
+    setSavingBooking(false);
   }, [service]);
 
   if (!service) return null;
@@ -197,8 +213,35 @@ function BookingDrawer({ service, isArabic, onClose }: { service: Service | null
   const categoryText = isArabic ? clean(service.categoryNameAr) : clean(service.categoryName);
   const displayName = serviceName(service, isArabic);
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (savingBooking) return;
+    setBookingError('');
+    setSavingBooking(true);
+
+    if (supabase) {
+      const client = supabase;
+      const { data } = await client.auth.getSession();
+      const session = data.session;
+      if (session) {
+        const serviceId = service.id === 'general' ? null : service.id;
+        const { error: saveError } = await client.from('appointments').insert({
+          customer_id: session.user.id,
+          service_id: serviceId,
+          appointment_date: date,
+          appointment_time: bookingTimeToSql(time),
+          status: 'pending',
+          notes: message.trim() || null,
+          source: 'website_whatsapp',
+        });
+        if (saveError) {
+          setSavingBooking(false);
+          setBookingError(`${saveError.message} ${isArabic ? 'شغّلي ملف phase4b_customer_booking.sql مرة واحدة إذا لم يتم تشغيله بعد.' : 'Run supabase/phase4b_customer_booking.sql once if it has not been run yet.'}`);
+          return;
+        }
+      }
+    }
+
     const lines = isArabic
       ? [
           'مرحباً Elaash Beauty، أود حجز موعد.',
@@ -208,8 +251,8 @@ function BookingDrawer({ service, isArabic, onClose }: { service: Service | null
           `السعر: ${formatPrice(service.price, false, isArabic)}`,
           service.packagePrice ? `باقة 5 جلسات: ${formatPrice(service.packagePrice, false, isArabic)}` : '',
           `اسم العميلة: ${name || 'غير محدد'}`,
-          `التاريخ المفضل: ${date || 'مرن'}`,
-          `الوقت المفضل: ${time || 'مرن'}`,
+          `التاريخ المفضل: ${date}`,
+          `الوقت المفضل: ${time}`,
           message ? `رسالة إضافية: ${message}` : '',
         ]
       : [
@@ -220,12 +263,13 @@ function BookingDrawer({ service, isArabic, onClose }: { service: Service | null
           `Individual price: ${formatPrice(service.price)}`,
           service.packagePrice ? `Five-session price: ${formatPrice(service.packagePrice)}` : '',
           `Customer name: ${name || 'Not specified'}`,
-          `Preferred date: ${date || 'Flexible'}`,
-          `Preferred time: ${time || 'Flexible'}`,
+          `Preferred date: ${date}`,
+          `Preferred time: ${time}`,
           message ? `Message: ${message}` : '',
         ];
 
     setSent(true);
+    setSavingBooking(false);
     window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(lines.filter(Boolean).join('\n'))}`, '_blank', 'noopener,noreferrer');
   };
 
@@ -286,9 +330,10 @@ function BookingDrawer({ service, isArabic, onClose }: { service: Service | null
               {tr(labels.optionalMessage, isArabic)}
               <textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={3} className="mt-1 w-full resize-none rounded-xl border border-blush bg-ivory px-4 py-3 text-sm font-normal normal-case tracking-normal focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20" />
             </label>
-            <button type="submit" className="flex w-full items-center justify-center gap-3 rounded-full bg-[#25D366] px-6 py-4 font-semibold text-white shadow-lg hover:bg-[#1ebe5d] focus:outline-none focus:ring-2 focus:ring-[#25D366]/40">
+            {bookingError && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm normal-case tracking-normal text-red-700">{bookingError}</div>}
+            <button type="submit" disabled={savingBooking} className="flex w-full items-center justify-center gap-3 rounded-full bg-[#25D366] px-6 py-4 font-semibold text-white shadow-lg hover:bg-[#1ebe5d] focus:outline-none focus:ring-2 focus:ring-[#25D366]/40 disabled:cursor-wait disabled:opacity-60">
               <WhatsAppIcon />
-              {tr(labels.continueWhatsApp, isArabic)}
+              {savingBooking ? (isArabic ? 'جارٍ حفظ الموعد…' : 'Saving appointment…') : tr(labels.continueWhatsApp, isArabic)}
             </button>
           </form>
         )}
@@ -907,23 +952,50 @@ function PaginationControls({ page, totalPages, setPage, isArabic, desktop = fal
 }
 
 function AboutSection({ isArabic, onNavigate }: { isArabic: boolean; onNavigate: (id: SectionId) => void }) {
+  const highlights = isArabic
+    ? [
+        ['خصوصية وراحة', 'مساحة نسائية هادئة للعناية والاسترخاء.'],
+        ['عناية متكاملة', 'الشعر والأظافر والبشرة والمساج والحمام المغربي.'],
+        ['في قلب أبوظبي', 'موقع مريح في منطقة النهيان.'],
+        ['اهتمام بالتفاصيل', 'تجربة مرتبة من الحجز حتى نهاية الخدمة.'],
+      ]
+    : [
+        ['Women-only comfort', 'A calm, private space designed for beauty and relaxation.'],
+        ['Complete beauty care', 'Hair, nails, facials, massage, Moroccan bath and more.'],
+        ['Al Nahyan, Abu Dhabi', 'A convenient location in the heart of the city.'],
+        ['Care in every detail', 'A polished experience from booking to the final touch.'],
+      ];
+
   return (
-    <section id="about" className="scroll-mt-24 bg-blush-light px-5 py-20 sm:px-8 sm:py-28">
-      <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-2 lg:items-center">
-        <div>
-          <p data-scroll-anchor className="mb-3 text-xs font-medium uppercase tracking-widest text-gold">{tr(labels.nav.about, isArabic)}</p>
-          <h2 className="font-serif text-3xl text-burgundy sm:text-5xl">{isArabic ? 'لمسة أنوثة في قلب أبوظبي' : 'A Touch of Elegance in Abu Dhabi'}</h2>
-          <p className="mt-6 text-sm leading-relaxed text-muted">{isArabic ? 'Elaash Beauty صالون سيدات في منطقة النهيان بأبوظبي، صُمم كمساحة راقية وخاصة للعناية والاسترخاء.' : 'Elaash Beauty is a women-only salon in Al Nahyan, Abu Dhabi, created as a refined private space for beauty, care and calm.'}</p>
+    <section id="about" className="about-viewport-section scroll-mt-24 bg-blush-light px-5 sm:px-8">
+      <div className="about-inner mx-auto grid max-w-7xl gap-5 lg:grid-cols-[1.05fr_.95fr] lg:items-stretch">
+        <div className="about-copy flex min-h-0 flex-col justify-center">
+          <p data-scroll-anchor className="mb-2 text-xs font-medium uppercase tracking-widest text-gold">{tr(labels.nav.about, isArabic)}</p>
+          <h2 className="font-serif text-3xl leading-tight text-burgundy sm:text-5xl">{isArabic ? 'لمسة أنوثة في قلب أبوظبي' : 'A Touch of Elegance in Abu Dhabi'}</h2>
+          <p className="about-intro mt-3 max-w-2xl text-sm leading-relaxed text-muted">{isArabic ? 'Elaash Beauty صالون سيدات في منطقة النهيان بأبوظبي، صُمم كمساحة راقية وخاصة تجمع العناية والجمال والراحة في تجربة واحدة.' : 'Elaash Beauty is a women-only salon in Al Nahyan, Abu Dhabi, created as a refined private space where beauty, care and calm come together in one experience.'}</p>
+          <div className="about-highlights mt-4 grid grid-cols-2 gap-2.5">
+            {highlights.map(([title, text]) => (
+              <article key={title} className="rounded-2xl border border-burgundy/10 bg-cream/75 p-3 shadow-sm">
+                <p className="font-serif text-base leading-tight text-burgundy">{title}</p>
+                <p className="mt-1 text-[11px] leading-4 text-muted sm:text-xs">{text}</p>
+              </article>
+            ))}
+          </div>
+          <div className="about-promise mt-4 rounded-2xl border-l-2 border-gold bg-burgundy px-4 py-3 text-cream">
+            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-gold-light">{isArabic ? 'وعد Elaash' : 'The Elaash Promise'}</p>
+            <p className="mt-1 font-serif text-lg leading-snug">{isArabic ? 'جمال يليق بكِ، وعناية تجعلكِ تشعرين بالراحة والثقة.' : 'Beauty that feels personal, with care that leaves you comfortable and confident.'}</p>
+          </div>
         </div>
-        <img src="https://images.unsplash.com/photo-1696841212541-449ca29397cc?w=900&h=700&fit=crop&auto=format" alt="Salon atmosphere" className="h-80 w-full rounded-2xl object-cover" loading="lazy" />
+        <div className="about-visual relative min-h-0 overflow-hidden rounded-[1.75rem]">
+          <img src="https://images.unsplash.com/photo-1696841212541-449ca29397cc?w=900&h=700&fit=crop&auto=format" alt="Salon atmosphere" className="h-full w-full object-cover" loading="lazy" />
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-burgundy-dark/85 to-transparent px-5 pb-5 pt-16 text-cream">
+            <p className="text-[10px] font-semibold uppercase tracking-[.24em] text-gold-light">Elaash Beauty</p>
+            <p className="mt-1 font-serif text-xl">{isArabic ? 'Beauty • Care • Confidence' : 'Beauty • Care • Confidence'}</p>
+          </div>
+        </div>
       </div>
-      <div className="mx-auto mt-8 flex max-w-7xl justify-center">
-        <SectionNextButton
-          targetId="gallery"
-          label={isArabic ? 'شاهدي معرضنا' : 'Explore Our Gallery'}
-          ariaLabel={isArabic ? 'شاهدي معرضنا' : 'Explore Our Gallery'}
-          onNavigate={onNavigate}
-        />
+      <div className="about-next mx-auto mt-4 flex max-w-7xl justify-center">
+        <SectionNextButton targetId="gallery" label={isArabic ? 'شاهدي معرضنا' : 'Explore Our Gallery'} ariaLabel={isArabic ? 'شاهدي معرضنا' : 'Explore Our Gallery'} onNavigate={onNavigate} />
       </div>
     </section>
   );
@@ -1099,7 +1171,7 @@ function Footer({ onNavigate, isArabic }: { onNavigate: (id: SectionId) => void;
   );
 }
 
-function MobileSectionNavigator({ active, isArabic, onNavigate }: { active: SectionId; isArabic: boolean; onNavigate: (id: SectionId) => void }) {
+function MobileSectionNavigator({ active, isArabic, onNavigate, hideActions = false }: { active: SectionId; isArabic: boolean; onNavigate: (id: SectionId) => void; hideActions?: boolean }) {
   const [open, setOpen] = useState(false);
   const currentIndex = Math.max(0, MOBILE_SECTION_ORDER.indexOf(active));
   const next = MOBILE_SECTION_ORDER[Math.min(currentIndex + 1, MOBILE_SECTION_ORDER.length - 1)];
@@ -1109,53 +1181,47 @@ function MobileSectionNavigator({ active, isArabic, onNavigate }: { active: Sect
   };
 
   return (
-    <div className={`mobile-section-nav fixed left-1/2 z-40 -translate-x-1/2 sm:hidden ${active === 'contact' ? 'bottom-[6.25rem]' : 'bottom-[4.75rem]'}`}>
+    <div className="mobile-bottom-dock fixed inset-x-3 bottom-[calc(.65rem+env(safe-area-inset-bottom))] z-40 sm:hidden">
       {open && (
         <div className="mobile-section-menu mb-2 rounded-[22px] border border-gold/25 bg-cream/95 p-2 shadow-2xl backdrop-blur-xl">
           {MOBILE_SECTION_ORDER.map((id, index) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => { onNavigate(id); setOpen(false); }}
-              className={`flex w-full items-center justify-between gap-5 rounded-2xl px-3 py-2 text-left text-xs font-semibold transition ${id === active ? 'bg-burgundy text-cream' : 'text-charcoal hover:bg-blush-light'}`}
-            >
+            <button key={id} type="button" onClick={() => { onNavigate(id); setOpen(false); }} className={`flex w-full items-center justify-between gap-5 rounded-2xl px-3 py-2 text-left text-xs font-semibold transition ${id === active ? 'bg-burgundy text-cream' : 'text-charcoal hover:bg-blush-light'}`}>
               <span>{nameFor(id)}</span>
               <span className={`text-[10px] ${id === active ? 'text-gold-light' : 'text-muted'}`}>{String(index + 1).padStart(2, '0')}</span>
             </button>
           ))}
         </div>
       )}
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        aria-label={isArabic ? 'فتح قائمة الأقسام' : 'Open section navigator'}
-        className="mobile-section-pill flex min-w-[210px] items-center justify-between gap-3 rounded-full border border-gold/35 bg-burgundy-dark/95 px-3.5 py-2.5 text-cream shadow-2xl backdrop-blur-xl"
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-cream/10 text-[10px] font-bold text-gold-light">{currentIndex + 1}</span>
-          <span className="min-w-0 text-left leading-tight">
-            <span className="block truncate text-[10px] uppercase tracking-[0.16em] text-cream/55">{nameFor(active)}</span>
-            <span className="block truncate text-xs font-semibold">{active === 'contact' ? (isArabic ? 'النهاية' : 'End') : `${isArabic ? 'التالي' : 'Next'} · ${nameFor(next)}`}</span>
+      <div className={`mobile-premium-dock grid items-stretch overflow-hidden rounded-[22px] border border-gold/30 bg-burgundy-dark/95 shadow-2xl backdrop-blur-xl ${hideActions ? 'grid-cols-1' : 'grid-cols-[4.1rem_1fr_4.1rem]'}`}>
+        {!hideActions && (
+          <a href={`tel:${PHONE_NUMBER}`} className="mobile-dock-action flex flex-col items-center justify-center gap-0.5 border-r border-cream/10 px-2 py-2 text-cream" aria-label={isArabic ? 'اتصال' : 'Call'}>
+            <span className="text-base leading-none">☎</span>
+            <span className="text-[9px] font-semibold uppercase tracking-[.08em] text-cream/70">{isArabic ? 'اتصال' : 'Call'}</span>
+          </a>
+        )}
+        <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={isArabic ? 'فتح قائمة الأقسام' : 'Open section navigator'} className="mobile-section-pill flex min-w-0 items-center justify-between gap-2 px-3 py-2 text-cream">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/45 bg-cream/10 text-[10px] font-bold text-gold-light">{currentIndex + 1}</span>
+            <span className="min-w-0 text-left leading-tight">
+              <span className="block truncate text-[9px] uppercase tracking-[0.14em] text-cream/50">{nameFor(active)}</span>
+              <span className="block truncate text-[11px] font-semibold">{active === 'contact' ? (isArabic ? 'النهاية' : 'End') : `${isArabic ? 'التالي' : 'Next'} · ${nameFor(next)}`}</span>
+            </span>
           </span>
-        </span>
-        <span className="text-gold-light">{open ? '×' : '⌃'}</span>
-      </button>
+          <span className="shrink-0 text-sm text-gold-light">{open ? '×' : '⌃'}</span>
+        </button>
+        {!hideActions && (
+          <a href={generalWhatsAppUrl(isArabic)} target="_blank" rel="noreferrer" className="mobile-dock-action flex flex-col items-center justify-center gap-0.5 border-l border-cream/10 px-2 py-2 text-cream" aria-label="WhatsApp">
+            <WhatsAppIcon size={17} />
+            <span className="text-[9px] font-semibold uppercase tracking-[.04em] text-cream/70">WhatsApp</span>
+          </a>
+        )}
+      </div>
     </div>
   );
 }
 
-function FloatingActions({ isArabic, hideMobileBar = false }: { isArabic: boolean; hideMobileBar?: boolean }) {
-  return (
-    <>
-      <a href={generalWhatsAppUrl(isArabic)} target="_blank" rel="noreferrer" className="fixed bottom-6 right-5 z-30 hidden h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg hover:scale-105 sm:flex" aria-label="Chat on WhatsApp"><WhatsAppIcon size={26} /></a>
-      {!hideMobileBar && <div className="mobile-action-bar fixed inset-x-0 bottom-0 z-30 flex border-t border-blush bg-cream shadow-2xl sm:hidden">
-        <a href={`tel:${PHONE_NUMBER}`} className="flex min-h-14 flex-1 items-center justify-center font-semibold text-burgundy">{isArabic ? 'اتصال' : 'Call'}</a>
-        <div className="w-px bg-blush" />
-        <a href={generalWhatsAppUrl(isArabic)} target="_blank" rel="noreferrer" className="flex min-h-14 flex-1 items-center justify-center gap-2 font-semibold text-[#25D366]"><WhatsAppIcon size={18} />WhatsApp</a>
-      </div>}
-    </>
-  );
+function FloatingActions({ isArabic }: { isArabic: boolean }) {
+  return <a href={generalWhatsAppUrl(isArabic)} target="_blank" rel="noreferrer" className="fixed bottom-6 right-5 z-30 hidden h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg hover:scale-105 sm:flex" aria-label="Chat on WhatsApp"><WhatsAppIcon size={26} /></a>;
 }
 
 export default function App() {
@@ -1280,8 +1346,8 @@ export default function App() {
           <Footer onNavigate={navigateToSection} isArabic={isArabic} />
         </div>
       </main>
-      <MobileSectionNavigator active={activeSection} isArabic={isArabic} onNavigate={navigateToSection} />
-      <FloatingActions isArabic={isArabic} hideMobileBar={activeSection === 'contact'} />
+      <MobileSectionNavigator active={activeSection} isArabic={isArabic} onNavigate={navigateToSection} hideActions={activeSection === 'contact'} />
+      <FloatingActions isArabic={isArabic} />
       <BookingDrawer service={booking} isArabic={isArabic} onClose={() => setBooking(null)} />
     </div>
   );
